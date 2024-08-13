@@ -1,6 +1,6 @@
 [package]
 name = "astoria_ml"
-version = "0.1.1"
+version = "0.1.11"
 authors = ["Astoria"]
 edition = "2021"
 rust-version = "1.80.1"
