@@ -7,7 +7,7 @@ rust-version = "1.80.1"
 description = "Machine learning algorithms, made from the ground up with linear algebra and matrix manipulation, with a focus on genetic iteration for machine learning"
 repository = "https://github.com/Apoxtrophe/Asterix"
 keywords = ["rust", "example", "machine-learning"]
-categories = ["science", "artificial-intelligence::machine-learning", "data-structures", "algorithms"]
+categories = ["science", "data-structures", "algorithms"]
 documentation = "https://docs.rs/asterix"
 license = "MIT OR Apache-2.0"
 
