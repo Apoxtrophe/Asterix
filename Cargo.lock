@@ -3,8 +3,8 @@
 version = 3
 
 [[package]]
-name = "Asterix"
-version = "0.1.0"
+name = "asterix"
+version = "0.1.1"
 dependencies = [
  "rand",
 ]

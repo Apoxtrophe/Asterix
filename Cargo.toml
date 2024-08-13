@@ -1,6 +1,11 @@
 [package]
-name = "Asterix"
-version = "0.1.0"
+name = "asterix"
+version = "0.1.1"
+authors = ["Astoria"]
+repository = "https://github.com/Apoxtrophe/Asterix"
+keywords = ["rust", "example", "machine-learning"]
+categories = ["science", "artificial-intelligence::machine-learning", "data-structures", "algorithms"]
+documentation = "https://docs.rs/asterix"
 edition = "2021"
 
 [dependencies]
