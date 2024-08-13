@@ -2,11 +2,14 @@
 name = "asterix"
 version = "0.1.1"
 authors = ["Astoria"]
+edition = "2021"
+rust-version = "1.80.1"
+description = "Machine learning algorithms, made from the ground up with linear algebra and matrix manipulation, with a focus on genetic iteration for machine learning"
 repository = "https://github.com/Apoxtrophe/Asterix"
 keywords = ["rust", "example", "machine-learning"]
 categories = ["science", "artificial-intelligence::machine-learning", "data-structures", "algorithms"]
 documentation = "https://docs.rs/asterix"
-edition = "2021"
+
 
 [dependencies]
 rand = "0.8.5"
