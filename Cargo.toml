@@ -1,5 +1,5 @@
 [package]
-name = "asterix"
+name = "astoria_ml"
 version = "0.1.1"
 authors = ["Astoria"]
 edition = "2021"

@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "asterix"
+name = "astoria_ml"
 version = "0.1.1"
 dependencies = [
  "rand",
