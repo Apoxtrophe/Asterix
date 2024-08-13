@@ -6,7 +6,7 @@ pub struct Network {
   pub network_layout: Vec<usize>,
   pub cluster: Vec<Matrix>,
 }
-
+// Gell
 impl Network {
   pub fn new(
     network_layout: Vec<usize>
