@@ -9,7 +9,7 @@ repository = "https://github.com/Apoxtrophe/Asterix"
 keywords = ["rust", "example", "machine-learning"]
 categories = ["science", "artificial-intelligence::machine-learning", "data-structures", "algorithms"]
 documentation = "https://docs.rs/asterix"
-
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 rand = "0.8.5"
