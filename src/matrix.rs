@@ -40,13 +40,13 @@ impl Matrix {
         data: vec![0.0; rows * cols],
       }
   }
-  pub fn random_pos(
+  pub fn random(
     rows: usize,
     cols: usize,
   ) -> Self {
     let mut rng = rand::thread_rng();
     let data: Vec<f32> = (0..(rows * cols))
-      .map(|_| rng.gen_range(0.0..1.0))
+      .map(|_| rng.gen_range(-1.0..1.0))
       .collect();
     Matrix {
       rows,
