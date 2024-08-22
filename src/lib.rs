@@ -8,16 +8,6 @@ pub enum ActivationFunction {
   ReLU,
 }
 
-impl ActivationFunction {
-    fn apply(&self, x:f32) -> f32 {
-        match self {
-            ActivationFunction::Sigmoid => 1.0 / (1.0 + (-x).exp()),
-            ActivationFunction::Tanh => x.tanh(),
-            ActivationFunction::ReLU => x.max(0.0),
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Network {
   pub layout: Vec<usize>,
