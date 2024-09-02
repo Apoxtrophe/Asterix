@@ -105,18 +105,18 @@ impl Network {
         }
     }
 
-    pub fn forward(&mut self, input: Vec<f32>) -> Vec<f32> {
-        let mut activations = DVector::from_vec(input);
-        for (i, (weights, biases)) in self.genome.weights.iter().zip(&self.genome.biases).enumerate()
-        {
-            let z = weights * activations + biases;
+    pub fn forward(&mut self, input: &[f32]) -> Vec<f32> {
+        let mut activations = DVector::from_column_slice(input); // Use a slice to avoid reallocation
+        for (i, (weights, biases)) in self.genome.weights.iter().zip(&self.genome.biases).enumerate() {
+            // Use references to avoid cloning
+            let z = weights * &activations + biases;
             activations = if i == self.genome.weights.len() - 1 {
                 self.output_activation.apply(&z)
             } else {
                 self.hidden_activation.apply(&z)
             };
         }
-        self.outputs = activations.clone().data.as_vec().clone();
+        self.outputs = activations.data.as_vec().clone(); // Only clone once
         self.outputs.clone()
     }
 }
@@ -191,21 +191,16 @@ impl Population {
         }
     }
 
-    /// Processes a vector of input vectors through each network in the population
-    /// and returns a vector of outputs.
-    pub fn forward(&mut self, inputs: Vec<Vec<f32>>) -> Vec<Vec<Vec<f32>>> {
-        // Use Rayon for parallel processing of the networks and inputs
-        self.networks
-            .par_iter_mut() // Parallel iterator for the networks
-            .map(|network| {
-                inputs
-                    .iter() // Regular iterator for the inputs since forward uses &mut self
-                    .map(|input| {
-                        let mut cloned_network = network.clone(); // Clone to avoid borrowing issues
-                        cloned_network.forward(input.clone())
-                    })
-                    .collect()
-            })
-            .collect()
-    }
+    pub fn forward(&mut self, inputs: &[Vec<f32>]) -> Vec<Vec<Vec<f32>>> {
+            self.networks
+                .par_iter_mut() // Parallelize over networks
+                .map(|network| {
+                    inputs
+                        .iter()
+                        .map(|input| network.forward(input)) // Use existing forward method without unnecessary cloning
+                        .collect()
+                })
+                .collect()
+        }
+    `
 }
