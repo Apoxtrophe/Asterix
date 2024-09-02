@@ -13,3 +13,5 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 rand = "0.8.5"
+nalgebra = "0.33.0"
+termion = "4.0.2"
