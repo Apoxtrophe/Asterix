@@ -1,9 +1,7 @@
 use nalgebra::*;
 use rand::prelude::*;
-use termion::*;
-use ::core::f32;
-use std::io::{stdout, Write};
-use std::process::Command;
+use rayon::prelude::*;
+
 #[derive(Copy, Clone)]
 pub enum ActivationFunction {
     Sigmoid,
@@ -27,6 +25,7 @@ impl ActivationFunction {
         }
     }
 }
+
 #[derive(Clone)]
 pub struct Genome {
     pub weights: Vec<DMatrix<f32>>,
@@ -46,7 +45,35 @@ impl Genome {
             bias_vector.iter_mut().for_each(|val| *val += rng.sample(mutation_dist));
         });
     }
+
+    pub fn crossover(&self, other: &Genome) -> Genome {
+        let mut rng = rand::thread_rng();
+        let crossover_dist = rand::distributions::Uniform::new(0.0, 1.0);
+
+        let weights = self.weights.iter().zip(&other.weights).map(|(w1, w2)| {
+            DMatrix::from_fn(w1.nrows(), w1.ncols(), |r, c| {
+                if rng.sample(crossover_dist) < 0.5 {
+                    w1[(r, c)]
+                } else {
+                    w2[(r, c)]
+                }
+            })
+        }).collect();
+
+        let biases = self.biases.iter().zip(&other.biases).map(|(b1, b2)| {
+            DVector::from_fn(b1.len(), |i, _| {
+                if rng.sample(crossover_dist) < 0.5 {
+                    b1[i]
+                } else {
+                    b2[i]
+                }
+            })
+        }).collect();
+
+        Genome { weights, biases }
+    }
 }
+
 #[derive(Clone)]
 pub struct Network {
     pub genome: Genome,
@@ -54,6 +81,7 @@ pub struct Network {
     pub hidden_activation: ActivationFunction,
     pub output_activation: ActivationFunction,
     pub fitness: f32,
+    pub outputs: Vec<f32>,
 }
 
 impl Network {
@@ -73,65 +101,111 @@ impl Network {
             hidden_activation,
             output_activation,
             fitness: 0.0,
+            outputs: Vec::new(),
         }
     }
 
-    pub fn forward(&self, input: DVector<f32>) -> Vec<DVector<f32>> {
-        let mut activations = vec![input];
-
-        for (i, (weights, biases)) in self.genome.weights.iter().zip(&self.genome.biases).enumerate() {
-            let z = weights * activations.last().unwrap() + biases;
-            let activation = if i == self.genome.weights.len() - 1 {
+    pub fn forward(&mut self, input: Vec<f32>) -> Vec<f32> {
+        let mut activations = DVector::from_vec(input);
+        for (i, (weights, biases)) in self.genome.weights.iter().zip(&self.genome.biases).enumerate()
+        {
+            let z = weights * activations + biases;
+            activations = if i == self.genome.weights.len() - 1 {
                 self.output_activation.apply(&z)
             } else {
                 self.hidden_activation.apply(&z)
             };
-            activations.push(activation);
         }
-
-        activations
-    }
-    pub fn display_activations(&self, activations: Vec<DVector<f32>>, fitness: f32) {
-        let mut stdout = stdout();
-
-        // Clear the screen and move the cursor to the top-left corner
-        write!(stdout, "{}{}", clear::All, cursor::Goto(1, 1)).unwrap();
-
-        // Display the input as a 10x10 grid
-        let input_activations = &activations[0];
-        for (i, &activation) in input_activations.iter().enumerate() {
-            if i % 28 == 0 && i != 0 {
-                println!(); // New line after every 10 characters
-            }
-            // Map the activation value to a yellow intensity (0-255)
-            let color_value = ((activation.max(0.0).min(1.0) * 255.0) as u8).min(255);
-            let color_block = color::Fg(color::Rgb(0,0,color_value)); // Yellow color with intensity mapping
-            write!(stdout, "{}█{}", color_block, style::Reset).unwrap();
-        }
-        println!();
-
-        // Display hidden and output layers
-        for (layer_index, layer_activations) in activations.iter().enumerate().skip(1) {
-            for &activation in layer_activations.iter() {
-                // Map the activation value to a yellow intensity (0-255)
-                let color_value = (activation.sin() * 255.0) as u8;
-                //let color_value = ((activation.max(0.0).min(1.0) * 255.0) as u8).min(255);
-                let color_block = color::Fg(color::Rgb(0,color_value,color_value)); // Yellow color with intensity mapping
-
-                // Represent each neuron as a colored block (using "█" character)
-                write!(stdout, "{}█{}", color_block, style::Reset).unwrap();
-            }
-            println!(); // Newline for each layer
-        }
-        let last_layer = activations.last().unwrap();
-                let (max_index, _) = last_layer
-                    .iter()
-                    .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .unwrap();
-        
-                println!("Classification: {}", max_index);
-        println!("Fitness {}", fitness);
+        self.outputs = activations.clone().data.as_vec().clone();
+        self.outputs.clone()
     }
 }
 
+pub struct Population {
+    pub networks: Vec<Network>,
+    pub mutation_rate: f32,
+    pub elite_fraction: f32,
+}
+
+impl Population {
+    pub fn new(
+        size: usize,
+        layout: Vec<usize>,
+        hidden_activation: ActivationFunction,
+        output_activation: ActivationFunction,
+        elite_fraction: f32,
+    ) -> Self {
+        let networks = (0..size)
+            .map(|_| Network::new(layout.clone(), hidden_activation, output_activation))
+            .collect();
+
+        Population {
+            networks,
+            mutation_rate: 1.0,
+            elite_fraction,
+        }
+    }
+
+    fn adjust_mutation_rate(&mut self) {
+        // Calculate the fitness difference between the top and bottom performers
+        let max_fitness = self.networks.first().map_or(0.0, |n| n.fitness);
+        let min_fitness = self.networks.last().map_or(0.0, |n| n.fitness);
+        let fitness_range = max_fitness - min_fitness;
+        let fitness_ratio = if max_fitness != 0.0 {
+            fitness_range / max_fitness
+        } else {
+            0.0
+        };
+
+        if fitness_ratio > 0.05 {
+            self.mutation_rate *= 0.9;
+        } else {
+            self.mutation_rate *= 1.1;
+        }
+    }
+
+    pub fn evolve(&mut self) {
+        self.networks.sort_by(|a, b| {
+            b.fitness
+                .partial_cmp(&a.fitness)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        self.adjust_mutation_rate();
+        println!("LOWEST: {} HIGHEST: {} MUT_RATE: {}", self.networks.last().unwrap().fitness / 10000.0 * 100.0,self.networks[0].fitness / 10000.0 * 100.0,self.mutation_rate);
+        let elite_count = (self.networks.len() as f32 * self.elite_fraction).ceil() as usize;
+        let elites = self.networks[..elite_count].to_vec();
+        
+        for i in elite_count..self.networks.len() {
+            let parent1 = &elites[rand::thread_rng().gen_range(0..elite_count)];
+            let parent2 = &elites[rand::thread_rng().gen_range(0..elite_count)];
+            let mut child = Network {
+                genome: parent1.genome.crossover(&parent2.genome),
+                layout: parent1.layout.clone(),
+                hidden_activation: parent1.hidden_activation,
+                output_activation: parent1.output_activation,
+                fitness: 0.0,
+                outputs: Vec::new(),
+            };
+            child.genome.mutate(self.mutation_rate);
+            self.networks[i] = child;
+        }
+    }
+
+    /// Processes a vector of input vectors through each network in the population
+    /// and returns a vector of outputs.
+    pub fn forward(&mut self, inputs: Vec<Vec<f32>>) -> Vec<Vec<Vec<f32>>> {
+        // Use Rayon for parallel processing of the networks and inputs
+        self.networks
+            .par_iter_mut() // Parallel iterator for the networks
+            .map(|network| {
+                inputs
+                    .iter() // Regular iterator for the inputs since forward uses &mut self
+                    .map(|input| {
+                        let mut cloned_network = network.clone(); // Clone to avoid borrowing issues
+                        cloned_network.forward(input.clone())
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+}
